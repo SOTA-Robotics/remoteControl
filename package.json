@@ -26,7 +26,10 @@
   "io_emergency_stop_port_num": 7,
 
   "temperature_threshold": 60,
-  "current_threshold": 0
+  "current_threshold": 0,
+
+  "start_bits": [0,0,0,0,0,0,0,0],
+  "stop_bits": [1,1,1,1,1,1,1,1]
 
 }
 
