@@ -1,7 +1,7 @@
 """
 shared variables between state machine and main_controller
 """
-from exception_logger import *
+from src.exception_logger import *
 '''
 initialize the logger and read the logging msg of the last line
 '''

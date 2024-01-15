@@ -3,71 +3,7 @@ import re
 import json
 from datetime import datetime
 
-'''
-reg way to extract information
-'''
-# def decode_logging_information():
-#     log_data = ["2023-01-08 19:45:00 - ERROR - This is an error message"];
-#     log_pattern = re.compile(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - \w+ - (.*)');
-#     for line in log_data:
-#         match = log_pattern.match(line);
-#         print(line);
-#         if match:
-#             message = match.group(1);
-#             print(f"Extracted Message :{message}")
-#         else:
-#             print("No match")
 
-
-'''
-json format to log the informaiton
-'''
-# def write_read_json_logging_information():
-#     # json_data_1 = {"key1": "value1", "key2": 42};
-#     # json_data_2 = {"key1":["apple","banana"]};
-#     # file_path = 'json_log.log'
-#     # logging.basicConfig(filename=file_path, level=logging.INFO);
-#     # logger = logging.getLogger("test_logger");
-#     # json_data = json.dumps(json_data_1)
-#     # print(json_data)
-#     # logger.error(f"{json_data}");
-#     with open('json_log.log','r') as file:
-#         log_data = file.readlines();
-#     log_data = log_data[-1];
-#     json_string = log_data.split("ERROR:test_logger:")[-1].strip();
-#     decoded_data = json.loads(json_string);
-#
-#     print("Decoded Data :", decoded_data);
-#     print(decoded_data["key1"]);
-#     print(decoded_data["key2"]);
-#
-#
-#
-# '''
-# write logging information in a log file
-# '''
-#
-# def write_logging_information():
-#     log_format = ('');
-#     logging.basicConfig(filename = 'my_log_file.log',level=logging.INFO, format=log_format);
-#     logger = logging.getLogger();
-#
-#     logger.error("This is an error")
-#
-#
-# '''
-# read the latest new line in the logging file
-# '''
-# def read_latest_logging_information():
-#     log_file_path = "my_log_file"
-#     with open(log_file_path,'r') as file:
-#         lines = file.readlines();
-#
-#     if lines:
-#         last_line = lines[-1];
-#         print("last line in the log file:",last_line);
-#     else:
-#         print("log file is empty or does not exist")
 
 '''
 logging system written here
@@ -80,7 +16,7 @@ def load_configuration():
     '''
     merged_config = {}
     loaded_config = ""
-    filename = "package.json"
+    filename = "../config/package.json"
     with open(filename, 'r') as file:
         lines = file.readlines()
         if lines:

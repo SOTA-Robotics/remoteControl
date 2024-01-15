@@ -1,4 +1,4 @@
-from exception_logger import *
+from src.exception_logger import *
 from datetime import datetime
 
 '''

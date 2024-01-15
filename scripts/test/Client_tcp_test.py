@@ -1,6 +1,6 @@
 
-from socket_tcp import *
-from share_variables import *
+from src.socket_tcp import *
+from src.share_variables import *
 import time
 
 

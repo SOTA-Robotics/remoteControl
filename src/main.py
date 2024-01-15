@@ -1,21 +1,14 @@
 # This is a sample Python script.
-import binascii
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
-from remote_control_alarm import ModbusAlarm
-from remote_control_IO import zhongsheng_io_relay_controller
-from remote_detect_current import fengkong_current_detector
-import numpy as np
 import threading
-import time
 from new_state_machine import *
 from pymodbus import Framer
-from datetime import datetime
 from pymodbus.client import ModbusSerialClient
 from socket_tcp import *
-from commands_parse import execute_command
+from src.commands_parse import execute_command
 from share_variables import *
 
 
