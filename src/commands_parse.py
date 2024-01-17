@@ -22,6 +22,12 @@ def command_start(alarm_controller: ModbusAlarm, io_controller: zhongsheng_io_re
 
 def command_read(io_controller: zhongsheng_io_relay_controller,
                  current_controller: fengkong_current_detector):
+    '''
+    read the RS485 all result including current,switches' inputs and outputs
+    :param io_controller: zhongsheng_io_relay_controller
+    :param current_controller: fengkong_current_detector
+    :return:
+    '''
     global current_read_failure_times
     global io_input_read_failure_times
     global io_output_read_failure_times
@@ -60,6 +66,13 @@ def command_error(alarm_controller: ModbusAlarm, io_controller: zhongsheng_io_re
 
 def check_devices_connection(io_controller: zhongsheng_io_relay_controller
                              , current_detector: fengkong_current_detector, modbusalarm: ModbusAlarm):
+    '''
+    check if all devices are connected including current sensor, switches and the alarm
+    :param io_controller:
+    :param current_detector:
+    :param modbusalarm:
+    :return:
+    '''
     alarm_connection_flag = False;
     io_connection_flag = False;
     current_connection_flag = False;

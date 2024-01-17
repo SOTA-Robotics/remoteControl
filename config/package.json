@@ -23,13 +23,15 @@
   "io_conveyor_port_num": 0,
   "io_robot_port_num": 1,
   "io_waste_feed_port_num": 2,
-  "io_emergency_stop_port_num": 7,
+  "io_emergency_stop_port_num": 0,
 
   "temperature_threshold": 60,
   "current_threshold": 0,
 
   "start_bits": [0,0,0,0,0,0,0,0],
-  "stop_bits": [1,1,1,1,1,1,1,1]
+  "stop_bits": [1,1,1,1,1,1,1,1],
+
+  "port_name_list": [ "intake_1", "intake_2", "outlet_1", "outlet_2"]
 
 }
 

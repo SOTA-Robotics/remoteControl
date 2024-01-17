@@ -79,7 +79,7 @@ def check_exception():
             error_code_list.append(0x08)
     if RS485_devices_reading["current"] is not None and RS485_devices_reading["current"] < configurations["current_threshold"]:
         error_code_list.append(0x09)
-    if not error_code_list:
+    if error_code_list:
         my_logger.log_json_information(date,tme,error_code=error_code_list, debug_condition=False)
         state_variable["check_exception_logging_flag"] = True
         print("other exceptions' problem")
@@ -188,7 +188,13 @@ class system_start_state(State):
         '''
         constraint the system operates on order.
         brief description: The system should be run manually and the control system
-         then in charge of the running of the system, pause the system when necessarily.
+                            then in charge of the running of the system, pause the system when necessarily.
+
+        states' transition: there are three states including state_stage_0 and state_stage_1, and state_stage_2
+
+        state_stage_0: waits all physical switches are release(start) and enters state_stage_1
+        state_stage_1: detected all physical switches are starts' mode, make all relays start as well
+        state_stage_2: any physical switches are pressed then enter waiting_state
         :param io_controller: io_controller
         :return:
         '''
@@ -199,7 +205,7 @@ class system_start_state(State):
         if self.state == "state_stage_0":
             if RS485_devices_reading["io_input"] and len(RS485_devices_reading["io_input"]) == 8:
                 start_list = [START_BIT]*7
-                if(start_list == RS485_devices_reading["io_input"][:7]):
+                if start_list == RS485_devices_reading["io_input"][:7]:
                     self.state = start_state[self.state]
         elif self.state == "state_stage_1":
             result = io_controller.set_all_switches(START_BIT);
@@ -220,6 +226,8 @@ class system_shutdown_state(State):
     system shutdown mode: control system pause the whole system
                         and wait users shutdown system correctly. Then control system
                         will command control system and cv system shutdown safely
+
+
     :param State: None, the state machine determine which state will be passed to
     """
     def __init__(self,state = "shutdown_stage_0"):
@@ -241,6 +249,8 @@ class system_shutdown_state(State):
         To ensure the system be shutdown correctly and safely operate next time
         wait until all physical relays or switches are turned off. Then control
         system release the relays and commands itself and cv system power off
+
+        states' transition:
         :param io_controller: io_controller object
         :return:
         """
