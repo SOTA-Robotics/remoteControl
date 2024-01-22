@@ -10,15 +10,17 @@ from pymodbus.client import ModbusSerialClient
 from socket_tcp import *
 from src.commands_parse import execute_command
 from share_variables import *
+from remote_control_IO import io_relay_controller
+from remote_control_alarm import ModbusAlarm
+from remote_detect_current import current_detector
+import yaml
 
 
-def io_controller_handler(io_controller: zhongsheng_io_relay_controller
-                          , current_detector: fengkong_current_detector, timeout, lock):
+def io_controller_handler(devices, timeout, lock):
     """
     Threading function to read io input and output as well as current.
     This function run a specific amount of time periodically
-    :param io_controller: zhongsheng_io_relay_controller object
-    :param current_detector: fengkong_current_detector object
+    :param devices: list of devices such as current sensor, io_relays and alarm
     :param timeout: the period of time between wake and sleep for this threading
     :param lock: lock for shared data structure between socket and threading
     :return:
@@ -29,10 +31,11 @@ def io_controller_handler(io_controller: zhongsheng_io_relay_controller
 
     while True:
         with (lock):
-            result = execute_command("read", io_controller, current_detector)
+            result = execute_command("read", devices)
+            RS485_devices_reading["current"] = result[0]
             RS485_devices_reading["io_input"] = result[1]
             RS485_devices_reading["io_output"] = result[2]
-            RS485_devices_reading["current"] = result[0]
+
         time.sleep(timeout)
 
 
@@ -62,16 +65,13 @@ def tcp_handler(server: tcp_server, timeout, lock):
     while True:
         with lock:
             tcp_data = server.read_from_client()
-            if (tcp_data != None):
-                print(tcp_data)
+            if tcp_data is not None:
                 tcp_read_json_information["conveyor_state"] = tcp_data["conveyor"]
                 tcp_read_json_information["robot"] = tcp_data["robot"]
                 tcp_read_json_information["temperature_sensors"] = tcp_data["temperature"]
                 ui_commands["start_signal"] = tcp_data["start"]
                 ui_commands["pause_signal"] = tcp_data["pause"]
                 ui_commands["shutdown_signal"] = tcp_data["stop"]
-
-                # print(RS485_devices_reading)
         time.sleep(timeout)
 
 
@@ -89,68 +89,120 @@ def cv_status_monitor_handler(server: tcp_server, timeout, lock):
         time.sleep(timeout)
 
 
-if __name__ == '__main__':
+def device_init():
+    '''
+
+    :return:
+    '''
+    global state_variable
+    global RS485_devices_reading
+    global read_failure_times
+    global devices_connection_flag
+    devices = {}
+    config_path = '../../config/RS485_config.yaml'
+    try:
+        configs = load_configuration(config_path)
+    except Exception as e:
+        print(e)
+        return None
+    port_config = configs["port"]
+    if port_config["connection"]:
+        serial_client = ModbusSerialClient(**port_config)
+        connection = serial_client.connect()
+        config_path = '../../config/devices.yaml'
+        if connection:
+            try:
+                configs = load_configuration(config_path)
+            except Exception as e:
+                print(e)
+                return None
+            state_variable["port_connection_flag"] = True
+            devices_config = configs["devices"]
+            for spec in devices_config:
+                device_type = spec.pop('type')
+                if device_type == 'alarm':
+                    devices[spec["name"]] = (ModbusAlarm(serial_client=serial_client,
+                                                         name=spec["name"], unit=spec["unit"]))
+                elif device_type == 'relays':
+                    devices[spec["name"]] = (io_relay_controller(serial_client=serial_client,
+                                                                 name=spec["name"], unit=spec["unit"],
+                                                                 small_port=spec["small_port"]))
+                elif device_type == 'current_sensor':
+                    devices[spec["name"]] = (current_detector(serial_client=serial_client,
+                                                              name=spec["name"], unit=spec["unit"]))
+        else:
+            state_variable["port_connection_flag"] = False
+            raise "port_connection_problem"
+
+        '''
+        init a dict to maintain device read data, continuously failure read times and connection flag
+        check device connection, check 10 times to do connection with all devices
+        '''
+        devices_read = configs["devices_read"]
+        for device in devices_read:
+            if device in devices.keys():
+                RS485_devices_reading[device] = None
+                read_failure_times[device] = 0
+        for device in devices:
+            devices_connection_flag[device] = False
+        execute_command("check", devices)
+        return devices
+    else:
+        return None
+
+
+def socket_tcp_init():
+    '''
+
+    :return:
+    '''
+    global state_variable
+    socket_server = None
+    config_path = '../../config/socket_config.yaml'
+    configs = None
+    try:
+        configs = load_configuration(config_path)
+    except Exception as e:
+        state_variable["socket_connection_flag"] = False
+        print(e)
+        return None
+    try:
+        socket_server = tcp_server(host=configs["host"], port=configs["port"],
+                                   time_out=configs["connection_time_out"])
+        state_variable["socket_connection_flag"] = socket_server.connect_client(
+            waiting_time_out=configs["waiting_time_out"])
+    except Exception as e:
+        print(e)
+        state_variable["socket_connection_flag"] = False
+    return socket_server
+
+
+def control_system_run():
     global state_variable
     threads = []
     lock = threading.Lock()  # lock for shared data structure between socket and threading
-    serial_client = ModbusSerialClient(
-        method='rtu',
-        Framer=Framer.RTU,
-        port="/dev/ttyUSB0",
-        baudrate=19200,
-        parity='N',
-        bytesize=8,
-        stopbits=1,
-        timeout=0.1,
-        errorcheck="crc"
-    )
-    connection = serial_client.connect()
-    if connection:
-        state_variable["port_connection_flag"] = True
-    '''
-    initialize three devices
-    '''
-    modbusalarm = ModbusAlarm(serial_client, unit=1)
-    io_relay = zhongsheng_io_relay_controller(serial_client, unit=2, small_port=False)
-    current_detector = fengkong_current_detector(serial_client, unit=3)
 
-    '''
-    check device connection, check 10 times to do connection with all devices
-    '''
-    result = execute_command("check", io_relay, current_detector, modbusalarm)
-    state_variable["alarm_connection_flag"] = result[0]
-    state_variable["io_connection_flag"] = result[1]
-    state_variable["current_connection_flag"] = result[2]
-    state_variable["devices_connection_flag"] = result[3]
+    devices = device_init()
+    if devices:
+        thread = threading.Thread(target=io_controller_handler, args=(devices, 0.1, lock))
+        thread.start()
+        threads.append(thread)
 
-    print(state_variable["alarm_connection_flag"], state_variable["io_connection_flag"],
-          state_variable["current_connection_flag"])
-    '''
-    wait client make tcp connection in specific amount of time 
-    '''
-    try:
-        socket_server = tcp_server(host=configurations["host"], port=configurations["port"],
-                                   time_out=configurations["connection_time_out"])
-        state_variable["socket_connection_flag"] = socket_server.connect_client(
-            waiting_time_out=configurations["waiting_time_out"])
+    socket_server = socket_tcp_init()
+    if socket_server:
         thread = threading.Thread(target=tcp_handler, args=(socket_server, 0.1, lock))
         thread.start()
         threads.append(thread)
-    except Exception as e:
-        state_variable["socket_connection_flag"] = True
 
     '''
     Ready to run exception monitor system and read io and tcp devices 
     '''
 
-    thread = threading.Thread(target=io_controller_handler, args=(io_relay, current_detector, 0.1, lock))
-    thread.start()
-    threads.append(thread)
-
-    exception_handler_system = StateMachine(system_start_state(), lock,
-                                            modbusalarm, io_relay, current_detector,
-                                            1)
+    exception_handler_system = StateMachine(system_start_state(), lock, devices, sleep_time=1)
     exception_handler_system.run()
     for thread in threads:
         thread.join()
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
+
+if __name__ == '__main__':
+    control_system_run()

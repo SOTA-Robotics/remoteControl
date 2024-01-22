@@ -10,7 +10,7 @@ from RS485 import *
 
 
 class ModbusAlarm(RS485):
-    def __init__(self, serial_client: ModbusSerialClient, unit=0x01):
+    def __init__(self, serial_client: ModbusSerialClient,name, unit=0x01):
         """
 
         :param serial_client: pymodbus serialclient object
@@ -19,7 +19,7 @@ class ModbusAlarm(RS485):
         super().__init__(serial_client, unit)
         self.unit = unit
         self.client = serial_client
-
+        self.name = name
         print("Connected to Modbus RTU device alarm_controller")
 
     def play_alarm(self):
@@ -58,3 +58,10 @@ class ModbusAlarm(RS485):
             return None
         else:
             return result.registers
+
+    def check(self):
+        '''
+        check if device is connected
+        :return: True for connected, False for disconnected
+        '''
+        return super().check_connection(addr=0x01)

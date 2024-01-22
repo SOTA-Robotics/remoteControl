@@ -19,3 +19,9 @@ class RS485(object):
             return False
         else:
             return True
+
+    def read(self):
+        pass
+
+    def write(self):
+        pass

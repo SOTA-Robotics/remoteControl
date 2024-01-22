@@ -31,8 +31,10 @@
   "start_bits": [0,0,0,0,0,0,0,0],
   "stop_bits": [1,1,1,1,1,1,1,1],
 
-  "port_name_list": [ "intake_1", "intake_2", "outlet_1", "outlet_2"]
+  "port_name_list": [ "intake_1", "intake_2", "outlet_1", "outlet_2"],
 
+  "device_names": ["relays","current_sensor","alarm"],
+  "device_valid": [true,true,true]
 }
 
 

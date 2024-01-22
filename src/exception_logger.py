@@ -2,6 +2,7 @@ import logging
 import re
 import json
 from datetime import datetime
+import yaml
 
 
 
@@ -9,25 +10,25 @@ from datetime import datetime
 logging system written here
 Initially 
 '''
-def load_configuration():
-    '''
-
-    :return:
-    '''
-    merged_config = {}
-    loaded_config = ""
-    filename = "../config/package.json"
+def load_configuration(filename):
     with open(filename, 'r') as file:
-        lines = file.readlines()
-        if lines:
-            for line in lines:
-                loaded_config += line
-            loaded_config = loaded_config.rstrip('\n')
-            result = json.loads(loaded_config)
-    return result
+        # lines = file.readlines()
+        # if lines:
+        #     for line in lines:
+        #         loaded_config += line
+        #     loaded_config = loaded_config.rstrip('\n')
+        #     result = json.loads(loaded_config)
+        # return result
+        if filename.endswith('.yaml') or filename.endswith('.yml'):
+            return yaml.safe_load(file)
+        elif filename.endswith('.json'):
+            return json.load(file)
+        else:
+            raise Exception(f'loading configuration file:{filename} failure')
 
 
-class LoggingSystem():
+
+class LoggingSystem:
     def __init__(self, logger_name, filename, level=logging.ERROR):
         self.logger_name = logger_name
         self.logger = logging.getLogger(logger_name)

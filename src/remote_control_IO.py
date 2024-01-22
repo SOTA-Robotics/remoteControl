@@ -1,5 +1,4 @@
 
-
 from pymodbus.client import ModbusSerialClient
 import numpy as np
 from RS485 import *
@@ -19,22 +18,8 @@ def convert_16bits_integer(np_binary_array):
     print(high_8bits)
     return high_8bits << 8 | low_8bits
 
-
-# serial_port="/dev/ttyUSB0", baud_rate=19200, parity='N',
-#                  data_bits=8, stop_bits=1, timeout=0.01,
-# ModbusSerialClient(
-#             method='rtu',
-#             Framer=Framer.RTU,
-#             port=self.serial_port,
-#             baudrate=self.baud_rate,
-#             parity=self.parity,
-#             bytesize=self.data_bits,
-#             stopbits=self.stop_bits,
-#             timeout=self.timeout,
-#             errorcheck="crc"
-#         )
-class zhongsheng_io_relay_controller(RS485):
-    def __init__(self, serial_client: ModbusSerialClient, unit=0x01, small_port=True):
+class io_relay_controller(RS485):
+    def __init__(self, serial_client: ModbusSerialClient, name, unit=0x01, small_port=True):
         """
         :param serial_client: The pymodbus serial client object
         :param unit: uint16,the slave id for the device, the default value is 1
@@ -42,6 +27,7 @@ class zhongsheng_io_relay_controller(RS485):
         the big port meaning bigger than 4 port in input or output. True for small, False for big one
         """
         super().__init__(serial_client, unit)
+        self.name = name
         self.small_port = small_port
         self.unit = unit
         self.modes_names = ["普通模式", "联动模式", "点动模式", "开关循环模式", "", "开固定时长模式"]
@@ -80,19 +66,6 @@ class zhongsheng_io_relay_controller(RS485):
         else:
             return result.bits[0]
 
-    # def read_output_conditions(self,address = 0,count = 1):
-    #     '''
-    #     read output relays' conditions
-    #     :param address: the
-    #     :return:
-    #     '''
-    #     result = self.client.read_discrete_inputs(address = address,count=count,slave = self.unit);
-    #     if isinstance(result, ModbusException):
-    #         print("Failure to read output conditions", result);
-    #         return None;
-    #
-    #     else:
-    #         return result.bits[0];
 
     def read_outputs(self, address=0, count=1):
         """
@@ -112,7 +85,8 @@ class zhongsheng_io_relay_controller(RS485):
     def control_switches(self, open_switch_list, close_switch_list):
         """
         control all switch at the same time based on open_witch_list and close_switch_list
-        openlist represents True to switches and closelist represents False to switches
+        openlist represents True to switches and closelist represents False to switches.
+        There are 16 bits reserved for switches. The switches start from 1 to 16
         :param open_switch_list: list of outputs' number to switch to open
         :param close_switch_list: list of outputs' number to switch to close
         :return: bool, True for success to write; False for failure to write
@@ -207,7 +181,7 @@ class zhongsheng_io_relay_controller(RS485):
         """
         if 1 > mode > 5:
             print("Failure to set mode: mode should be integer between 1 and 5")
-            return;
+            return False
         result = self.client.write_registers(address=0, count=48, values=mode, slave=self.unit)
         if isinstance(result, ModbusException):
             print("Failure to set all switch mode ", result)
@@ -259,3 +233,29 @@ class zhongsheng_io_relay_controller(RS485):
         self.client.close()
         print("Done")
         return True
+
+    def check(self):
+        '''
+        check if device is connected
+        :return: True for connected, False for disconnected
+        '''
+        return super().check_connection(0x0)
+
+    def read(self):
+        '''
+        read relays input and output. If read successfully for all input and output
+        return a list of [io_input,io_output] or return None
+        :return:
+        '''
+        io_input_temp = None
+        io_output_temp = None
+        input_result_1to6 = self.read_input_conditions(address=0, count=0x6)
+        if input_result_1to6 is not None:
+            temp_7to8 = self.read_input_conditions(address=6, count=0x2)
+            if input_result_1to6 and temp_7to8:
+                io_input_temp = input_result_1to6 + temp_7to8
+        io_output_temp = self.read_outputs(address=0, count=8)
+        if None in [io_input_temp, io_output_temp]:
+            return None
+        else:
+            return [io_input_temp, io_output_temp]

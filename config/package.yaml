@@ -1,0 +1,29 @@
+#logger name and logging path
+logger_name: "error_logger"
+logging_path: "../logging/logging.log"
+
+#socket tcp configurations
+host: "192.168.10.87"
+port: 8888
+connection_time_out: 60
+waiting_time_out: 0.1
+
+#the io port number on relays correspond the controlled machine
+io_conveyor_port_num: 3
+io_robot_port_num: 2
+io_waste_feed_port_num: 1
+io_emergency_stop_port_num: 0
+
+#threshold for error conditions
+temperature_threshold: 60
+current_threshold: 0
+
+#the status for start & stop for each device on io_relays1
+start_bits: [0,0,0,0,0,0,0,0]
+stop_bits: [1,1,1,1,1,1,1,1]
+
+#temperature dict keys
+"port_name_list": [ "intake_1", "intake_2", "outlet_1", "outlet_2"]
+
+
+

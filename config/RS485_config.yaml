@@ -1,0 +1,11 @@
+#port configuration
+port:
+  - baudrate: 19200
+    method: 'rtu'
+    port: "/dev/ttyUSB0"
+    parity: 'N'
+    bytesize: 8
+    stopbits: 1
+    timeout: 0.1
+    errorcheck: "crc"
+    connection: true

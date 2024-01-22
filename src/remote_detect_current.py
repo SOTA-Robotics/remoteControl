@@ -16,8 +16,8 @@ def convert_16bits_integer(np_binary_array):
     return high_8bits << 8 | low_8bits
 
 
-class fengkong_current_detector(RS485):
-    def __init__(self, seria_client: ModbusSerialClient, unit=0x01):
+class current_detector(RS485):
+    def __init__(self, serial_client: ModbusSerialClient, name,unit=0x01):
         '''
         fengkong current detector
         :param seria_client:pymdobus serial client object
@@ -27,7 +27,7 @@ class fengkong_current_detector(RS485):
         self.baud_rate_dict = {3: 1200, 4: 2400, 5: 4800, 6: 9600, 7: 19200}
         self.unit = unit
         self.client = seria_client
-
+        self.name = name
         print("Connected to Modbus RTU device " + "fengkong_current_detector")
 
     def set_controller_address(self, unit=-1, baud_rate=-1):
@@ -48,14 +48,6 @@ class fengkong_current_detector(RS485):
             result = self.client.write_registers(address=0x57, values=unit, slave=self.unit)
         print("Success to set slave id and baudrate: restarting..........")
         self.client.close()
-        # try:
-        #     connection = self.client.connect();
-        #     if connection:
-        #         print("Connected to Modbus RTU device");
-        #     else:
-        #         print("Failure to do connection ")
-        # except Exception as e:
-        #     print(e);
         print("Done")
         return True
 
@@ -70,13 +62,16 @@ class fengkong_current_detector(RS485):
             return None
         else:
             return result.registers[0]*(20-0)/10000-0
-
-
+    def read(self):
+        return self.read_current()
     def close(self):
         self.client.close()
 
     def connect(self):
         self.client.connect()
+
+    def check(self):
+        return True if self.read_current() else False
 
 
 

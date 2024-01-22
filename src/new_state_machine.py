@@ -1,44 +1,36 @@
 
-
-from remote_control_alarm import ModbusAlarm
-from remote_control_IO import zhongsheng_io_relay_controller
-from remote_detect_current import fengkong_current_detector
 from share_variables import *
 from datetime import datetime
 import time
-
+import os
 
 class State:
     """
     Father class
     """
-    def __int__(self, name,state):
+    def __int__(self, name, state):
         self.name = name
         self.state = state
 
-    def on_event(self,alarm_controller: ModbusAlarm, io_controller: zhongsheng_io_relay_controller
-                 ,current_controller: fengkong_current_detector):
+    def on_event(self, device):
         pass;
+
 
 class StateMachine:
     """
     Class for managing finite state machine
     """
-    def __init__(self,initial_state:State,lock,alarm_controller: ModbusAlarm, io_controller: zhongsheng_io_relay_controller
-                 ,current_controller: fengkong_current_detector,sleep_time):
+    def __init__(self, initial_state:State, lock, devices, sleep_time):
         self.current_state = initial_state
         self.lock = lock
-        self.current_controller = current_controller
-        self.alarm_controller = alarm_controller
-        self.io_controller = io_controller
+        self.devices = devices
         self.sleep_time = sleep_time
 
     def run(self):
         while True:
             with self.lock:
                 print(self.current_state.__class__.__name__ + " : " + str(self.current_state.state))
-                self.current_state = self.current_state.on_event(self.alarm_controller,
-                                                                 self.io_controller,self.current_controller)
+                self.current_state = self.current_state.on_event(self.devices)
             time.sleep(self.sleep_time)
 
 
@@ -58,7 +50,10 @@ def check_exception():
     tme = cur.strftime('%H:%M:%S')
     error_code_list = []
     latest_logging = my_logger.read_json_information()
-    state_variable["check_exception_logging_flag"] = not latest_logging["debug_condition"]
+    if latest_logging:
+        state_variable["check_exception_logging_flag"] = not latest_logging["debug_condition"]
+    else:
+        state_variable["check_exception_logging_flag"] = False
     if state_variable["check_exception_logging_flag"]:
         print("The old exception problem still persist")
         return False
@@ -66,22 +61,20 @@ def check_exception():
         print("Connections' problem")
         return False
 
-    # log_info = my_logger.read_json_information();
-    # if log_info is not None and not log_info["debug_condition"]:
-    #     return False;
     if tcp_read_json_information:
         if (tcp_read_json_information["temperature_sensors"] and
                 max(tcp_read_json_information["temperature_sensors"]) > configurations["temperature_threshold"]):
-            error_code_list.append(0x06)
+            error_code_list.append(0x401)
         if not tcp_read_json_information["robot_state"]:
-            error_code_list.append(0x07)
+            error_code_list.append(0x402)
         if not tcp_read_json_information["conveyor_state"]:
-            error_code_list.append(0x08)
-    if RS485_devices_reading["current"] is not None and RS485_devices_reading["current"] < configurations["current_threshold"]:
-        error_code_list.append(0x09)
+            error_code_list.append(0x403)
+
+    if "current_sensor1" in RS485_devices_reading and (RS485_devices_reading["current_sensor1"] is not None
+            and RS485_devices_reading["current"] < configurations["current_threshold"]):
+        error_code_list.append(0x404)
     if error_code_list:
         my_logger.log_json_information(date,tme,error_code=error_code_list, debug_condition=False)
-        state_variable["check_exception_logging_flag"] = True
         print("other exceptions' problem")
         return False
     return True
@@ -102,15 +95,15 @@ def check_connection():
     tme = cur.strftime('%H:%M:%S')
     error_code_list = []
     if not state_variable["socket_connection_flag"]:
-        error_code_list.append(0x01)
+        error_code_list.append(0x501)
     if not state_variable["port_connection_flag"]:
-        error_code_list.append(0x02)
-    if not state_variable["io_connection_flag"]:
-        error_code_list.append(0x03)
-    if not state_variable["current_connection_flag"]:
-        error_code_list.append(0x04)
-    if not state_variable["alarm_connection_flag"]:
-        error_code_list.append(0x05)
+        error_code_list.append(0x502)
+    if devices_connection_flag:
+        idx = 0
+        for val in devices_connection_flag.values():
+            idx += 1
+            if val is False:
+                error_code_list.append(0x502+idx)
     if error_code_list:
         my_logger.log_json_information(date,tme,error_code=error_code_list,
                                        debug_condition=False)
@@ -128,16 +121,16 @@ class system_waiting_state(State):
                                     shutdown command.
     otherwise: system will remain this state
     """
-    def __init__(self,state = None):
+    def __init__(self, state=None):
         self.state = state
-    def on_event(self,alarm_controller: ModbusAlarm, io_controller: zhongsheng_io_relay_controller
-                 ,current_controller: fengkong_current_detector):
+
+    def on_event(self,devices):
         global ui_commands
         global RS485_devices_reading
         global configurations
-        #print("io input status: " + str(RS485_devices_reading["io_input"]))
-        io_controller.set_all_switches(STOP_BIT)
-        result = io_controller.read_outputs(address=0, count=8)
+        if "io_relays1" in devices:
+            devices["io_relays1"].set_all_switches(STOP_BIT)
+            result = devices["io_relays1"].read_outputs(address=0, count=8)
         if ui_commands["shutdown_signal"]:
             ui_commands["shutdown_signal"] = False
             return system_shutdown_state()
@@ -146,14 +139,17 @@ class system_waiting_state(State):
             my_logger.debug_finished()
             return system_start_state()
         elif not check_exception():
-            if RS485_devices_reading["current"] < configurations["current_threshold"]:
+            if ("current_sensor1" in RS485_devices_reading and
+                    RS485_devices_reading["current_sensor1"] < configurations["current_threshold"]):
                 return system_shutdown_state()
             return system_waiting_state()
-        elif (RS485_devices_reading["io_input"] and
-              RS485_devices_reading["io_input"][configurations["io_emergency_stop_port_num"]] == STOP_BIT):
+        elif ("io_relays" in RS485_devices_reading and
+              (RS485_devices_reading["io_relays"] and
+               RS485_devices_reading["io_relays"][0][configurations["io_emergency_stop_port_num"]] == STOP_BIT)):
             return system_waiting_state()
-        elif (RS485_devices_reading["io_input"] and
-              RS485_devices_reading["io_input"][configurations["io_emergency_stop_port_num"]] == START_BIT):
+        elif ("io_relays" in RS485_devices_reading and
+              RS485_devices_reading["io_relays"] and
+              RS485_devices_reading["io_relays"][0][configurations["io_emergency_stop_port_num"]] == START_BIT):
             return system_start_state()
         else:
             return system_waiting_state()
@@ -168,8 +164,7 @@ class system_start_state(State):
     def __init__(self,state = "state_stage_0"):
         self.state = state
 
-    def on_event(self,alarm_controller: ModbusAlarm, io_controller: zhongsheng_io_relay_controller
-                 ,current_controller: fengkong_current_detector):
+    def on_event(self,devices):
         global RS485_devices_reading
         global ui_commands
         if ui_commands["shutdown_signal"]:
@@ -177,14 +172,15 @@ class system_start_state(State):
             return system_shutdown_state()
         elif not check_exception():
             return system_waiting_state()
-        elif (RS485_devices_reading["io_input"] and
-              RS485_devices_reading["io_input"][configurations["io_emergency_stop_port_num"]] == STOP_BIT):
+        elif ("io_relays" in RS485_devices_reading and
+              (RS485_devices_reading["io_relays"] and
+              RS485_devices_reading["io_relays"][0][configurations["io_emergency_stop_port_num"]] == STOP_BIT)):
             return system_waiting_state()
         else:
-            self.start_in_sequence(io_controller)
+            self.start_in_sequence(devices)
             return system_start_state(self.state)
 
-    def start_in_sequence(self,io_controller: zhongsheng_io_relay_controller):
+    def start_in_sequence(self,devices):
         '''
         constraint the system operates on order.
         brief description: The system should be run manually and the control system
@@ -195,31 +191,37 @@ class system_start_state(State):
         state_stage_0: waits all physical switches are release(start) and enters state_stage_1
         state_stage_1: detected all physical switches are starts' mode, make all relays start as well
         state_stage_2: any physical switches are pressed then enter waiting_state
-        :param io_controller: io_controller
+        :param devices: devices list
         :return:
         '''
         global RS485_devices_reading
         global start_state
         global configurations
-        #print("io input status: "+str(RS485_devices_reading["io_input"]))
-        if self.state == "state_stage_0":
-            if RS485_devices_reading["io_input"] and len(RS485_devices_reading["io_input"]) == 8:
-                start_list = [START_BIT]*7
-                if start_list == RS485_devices_reading["io_input"][:7]:
+        if self.state == "start_stage_0":
+            if "io_relays" in RS485_devices_reading:
+                if (RS485_devices_reading["io_relays"] and len(RS485_devices_reading["io_relays"][0]) == 8 and
+                        configurations["start_list"] == RS485_devices_reading["io_relays"][0]):
                     self.state = start_state[self.state]
-        elif self.state == "state_stage_1":
-            result = io_controller.set_all_switches(START_BIT);
-            result = io_controller.read_outputs(address=0,count=8)
+                else:
+                    self.state = self.state
+            else:
+                self.state = start_state[self.state]
+        elif self.state == "start_stage_1":
+            if "io_relays" in RS485_devices_reading:
+                devices["io_relays"].set_all_switches(START_BIT)
+                result = devices["io_relays"].read_outputs(address=0, count=8)
+            else:
+                result = configurations["start_list"]
             if result and len(result) == 8:
-                start_list = [START_BIT]*8
-                if result == start_list:
+                if result == configurations["start_list"]:
                     self.state = start_state[self.state]
-        elif self.state == "state_stage_2":
-            io_input = RS485_devices_reading["io_input"]
+        elif self.state == "start_stage_2":
+            io_input = RS485_devices_reading["io_relays"]
             if io_input:
                 for val in io_input:
                     if val == STOP_BIT:
                         return system_waiting_state()
+
 
 class system_shutdown_state(State):
     """
@@ -230,62 +232,59 @@ class system_shutdown_state(State):
 
     :param State: None, the state machine determine which state will be passed to
     """
-    def __init__(self,state = "shutdown_stage_0"):
+    def __init__(self, state="shutdown_stage_0"):
         self.state = state
 
-    def on_event(self,alarm_controller: ModbusAlarm, io_controller: zhongsheng_io_relay_controller
-                 ,current_controller: fengkong_current_detector):
-        #print(f"The class name is:{self.__class__.__name__}")
+    def on_event(self,devices):
         if ui_commands["start_signal"]:
             ui_commands["start_signal"] = False
             return system_start_state()
 
-        self.shutdown_in_sequence(io_controller)
+        self.shutdown_in_sequence(devices)
         return system_shutdown_state(self.state)
 
-
-    def shutdown_in_sequence(self,io_controller: zhongsheng_io_relay_controller):
+    def shutdown_in_sequence(self,devices):
         """
         To ensure the system be shutdown correctly and safely operate next time
         wait until all physical relays or switches are turned off. Then control
         system release the relays and commands itself and cv system power off
 
         states' transition:
-        :param io_controller: io_controller object
+        :param devices: io_controller object
         :return:
         """
         global RS485_devices_reading
         global shut_down_state
+        global configurations
         if self.state == "shutdown_stage_0":
-            result = io_controller.set_all_switches(STOP_BIT)
-            # result = io_controller.read_outputs(address=0,count=8);
-            physical_relays = RS485_devices_reading["io_output"]
-            if physical_relays and len(physical_relays) != 8:
-                self.state = "shutdown_stage_0"
-            else:
-                stop_list = [STOP_BIT]*8
-                if physical_relays == stop_list:
-                    self.state = shut_down_state[self.state]
-                else:
+            if "io_relays" in devices:
+                result = devices["io_relays"].set_all_switches(STOP_BIT)
+                # result = io_controller.read_outputs(address=0,count=8);
+                physical_relays = RS485_devices_reading["io_output"]
+                if physical_relays and len(physical_relays) != 8:
                     self.state = "shutdown_stage_0"
+                else:
+                    if physical_relays == configurations["stop_list"]:
+                        self.state = shut_down_state[self.state]
+                    else:
+                        self.state = "shutdown_stage_0"
+            else:
+                self.state = shut_down_state[self.state]
         elif self.state == "shutdown_stage_1":
             '''
             wait user to shutdown all physical relays
             '''
-            io_input = RS485_devices_reading["io_input"]
-            stop_list = [STOP_BIT]*1
-            if io_input and io_input[:1] == stop_list:
-                self.state = shut_down_state[self.state]
+            if "io_relays" in devices:
+                if (RS485_devices_reading["io_relays"] and
+                        RS485_devices_reading["io_relays"][0] == configurations["stop_list"]):
+                    self.state = shut_down_state[self.state]
+                    print("System can be shutdown here")
+            else:
                 print("System can be shutdown here")
-
+                self.state = shut_down_state[self.state]
         elif self.state == "shutdown_stage_2":
-            result = io_controller.set_all_switches(START_BIT)
-            # result = io_controller.read_outputs(address=0, count=8);
-            output_relays = RS485_devices_reading["io_output"]
-            start_list = [START_BIT] * 8
-            if output_relays and len(output_relays) == 8:
-                if output_relays == start_list:
-                    print("system should be shutdown here")
-                    #os.system("shutdown now")
-
+            '''
+            shut down the system
+            '''
+            os.system("shutdown now")
 
