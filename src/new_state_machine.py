@@ -132,7 +132,8 @@ class system_waiting_state(State):
         global configurations
         check_exception()
         if "io_relays1" in devices:
-            devices["io_relays1"].set_all_switches(STOP_BIT)
+            # devices["io_relays1"].set_all_switches(STOP_BIT)
+            print("stop devices")
             result = devices["io_relays1"].read_outputs(address=0, count=8)
         if ui_commands["shutdown_signal"]:
             ui_commands["shutdown_signal"] = False
@@ -210,7 +211,8 @@ class system_start_state(State):
                 self.state = start_state[self.state]
         elif self.state == "start_stage_1":
             if "io_relays1" in RS485_devices_reading:
-                devices["io_relays1"].set_all_switches(START_BIT)
+                print("stop devices")
+                # devices["io_relays1"].set_all_switches(START_BIT)
                 result = devices["io_relays1"].read_outputs(address=0, count=8)
             else:
                 result = configurations["start_list"]
@@ -262,8 +264,9 @@ class system_shutdown_state(State):
         global configurations
         if self.state == "shutdown_stage_0":
             if "io_relays" in devices:
-                result = devices["io_relays"].set_all_switches(STOP_BIT)
+                # result = devices["io_relays"].set_all_switches(STOP_BIT)
                 # result = io_controller.read_outputs(address=0,count=8);
+                print("stop devices")
                 physical_relays = RS485_devices_reading["io_output"]
                 if physical_relays and len(physical_relays) != 8:
                     self.state = "shutdown_stage_0"
@@ -290,4 +293,5 @@ class system_shutdown_state(State):
             '''
             shut down the system
             '''
-            os.system("shutdown now")
+            print("end here")
+            # os.system("shutdown now")
