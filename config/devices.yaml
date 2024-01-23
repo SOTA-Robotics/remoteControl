@@ -6,15 +6,18 @@ devices:
   - type: alarm
     name: "alarm1"
     unit: 1
+    connection: false
 
   - type: relays
     name: "io_relays1"
     unit: 2
     small_port: false
+    connection: false
 
   - type: current_sensor
     name: "current_sensor1"
     unit: 3
+    connection: false
 
 
 #devices to be read and store results in the share variable

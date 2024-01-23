@@ -52,8 +52,8 @@ def check_exception():
     tme = cur.strftime('%H:%M:%S')
     error_code_list = []
     latest_logging = my_logger.read_json_information()
-    if latest_logging and not latest_logging["debug_condition"]:
-        return False
+    # if latest_logging and not latest_logging["debug_condition"]:
+    #     return False
     if not check_connection():
         print("Connections' problem")
         return False
@@ -130,6 +130,7 @@ class system_waiting_state(State):
         global ui_commands
         global RS485_devices_reading
         global configurations
+        check_exception()
         if "io_relays1" in devices:
             devices["io_relays1"].set_all_switches(STOP_BIT)
             result = devices["io_relays1"].read_outputs(address=0, count=8)
@@ -140,16 +141,14 @@ class system_waiting_state(State):
             ui_commands["start_signal"] = False
             my_logger.debug_finished()
             return system_start_state()
-        elif not check_exception():
-            if ("current_sensor1" in RS485_devices_reading and
-                    RS485_devices_reading["current_sensor1"] < configurations["current_threshold"]):
-                return system_shutdown_state()
+        if ("current_sensor1" in RS485_devices_reading and
+                RS485_devices_reading["current_sensor1"] < configurations["current_threshold"]):
+            return system_shutdown_state()
+        elif ("io_relays1" in RS485_devices_reading and
+              (RS485_devices_reading["io_relays1"] and
+               RS485_devices_reading["io_relays1"][0][configurations["io_emergency_stop_port_num"]] == STOP_BIT)):
             return system_waiting_state()
-        elif ("io_relays" in RS485_devices_reading and
-              (RS485_devices_reading["io_relays"] and
-               RS485_devices_reading["io_relays"][0][configurations["io_emergency_stop_port_num"]] == STOP_BIT)):
-            return system_waiting_state()
-        elif ("io_relays" in RS485_devices_reading and
+        elif ("io_relays1" in RS485_devices_reading and
               RS485_devices_reading["io_relays"] and
               RS485_devices_reading["io_relays"][0][configurations["io_emergency_stop_port_num"]] == START_BIT):
             return system_start_state()
@@ -170,11 +169,10 @@ class system_start_state(State):
     def on_event(self, devices):
         global RS485_devices_reading
         global ui_commands
+        check_exception()
         if ui_commands["shutdown_signal"]:
             ui_commands["shutdown_signal"] = False
             return system_shutdown_state()
-        elif not check_exception():
-            return system_waiting_state()
         elif ("io_relays" in RS485_devices_reading and
               (RS485_devices_reading["io_relays"] and
                RS485_devices_reading["io_relays"][0][configurations["io_emergency_stop_port_num"]] == STOP_BIT)):
@@ -184,7 +182,7 @@ class system_start_state(State):
             return system_start_state(self.state)
 
     def start_in_sequence(self, devices):
-        '''
+        """
         constraint the system operates on order.
         brief description: The system should be run manually and the control system
                             then in charge of the running of the system, pause the system when necessarily.
@@ -196,14 +194,14 @@ class system_start_state(State):
         state_stage_2: any physical switches are pressed then enter waiting_state
         :param devices: devices list
         :return:
-        '''
+        """
         global RS485_devices_reading
         global start_state
         global configurations
         if self.state == "start_stage_0":
-            if "io_relays" in RS485_devices_reading:
-                if (RS485_devices_reading["io_relays"] and len(RS485_devices_reading["io_relays"][0]) == 8 and
-                        configurations["start_list"] == RS485_devices_reading["io_relays"][0]):
+            if "io_relays1" in RS485_devices_reading:
+                if (RS485_devices_reading["io_relays1"] and len(RS485_devices_reading["io_relays1"][0]) == 8 and
+                        configurations["start_list"] == RS485_devices_reading["io_relays1"][0]):
                     self.state = start_state[self.state]
                 else:
                     self.state = self.state
@@ -211,17 +209,17 @@ class system_start_state(State):
                 print(start_state)
                 self.state = start_state[self.state]
         elif self.state == "start_stage_1":
-            if "io_relays" in RS485_devices_reading:
-                devices["io_relays"].set_all_switches(START_BIT)
-                result = devices["io_relays"].read_outputs(address=0, count=8)
+            if "io_relays1" in RS485_devices_reading:
+                devices["io_relays1"].set_all_switches(START_BIT)
+                result = devices["io_relays1"].read_outputs(address=0, count=8)
             else:
                 result = configurations["start_list"]
             if result and len(result) == 8:
                 if result == configurations["start_list"]:
                     self.state = start_state[self.state]
         elif self.state == "start_stage_2":
-            if "io_relays" in devices:
-                io_input = RS485_devices_reading["io_relays"]
+            if "io_relays1" in devices:
+                io_input = RS485_devices_reading["io_relays1"]
                 if io_input:
                     for val in io_input:
                         if val == STOP_BIT:

@@ -123,14 +123,14 @@ def device_init():
             devices_config = configs["devices"]
             for spec in devices_config:
                 device_type = spec.pop('type')
-                if device_type == 'alarm':
+                if device_type == 'alarm' and spec["connection"]:
                     devices[spec["name"]] = (ModbusAlarm(serial_client=serial_client,
                                                          name=spec["name"], unit=spec["unit"]))
-                elif device_type == 'relays':
+                elif device_type == 'relays' and spec["connection"]:
                     devices[spec["name"]] = (io_relay_controller(serial_client=serial_client,
                                                                  name=spec["name"], unit=spec["unit"],
                                                                  small_port=spec["small_port"]))
-                elif device_type == 'current_sensor':
+                elif device_type == 'current_sensor' and spec["connection"]:
                     devices[spec["name"]] = (current_detector(serial_client=serial_client,
                                                               name=spec["name"], unit=spec["unit"]))
                 '''
