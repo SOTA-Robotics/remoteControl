@@ -235,18 +235,19 @@ class io_relay_controller(RS485):
         return True
 
     def check(self):
-        '''
+        """
         check if device is connected
         :return: True for connected, False for disconnected
-        '''
+        """
         return super().check_connection(0x0)
 
     def read(self):
-        '''
+        """
         read relays input and output. If read successfully for all input and output
         return a list of [io_input,io_output] or return None
-        :return:
-        '''
+        :return: successful reading return io_input and io_output values in a list.
+                 otherwise,None
+        """
         io_input_temp = None
         io_output_temp = None
         input_result_1to6 = self.read_input_conditions(address=0, count=0x6)

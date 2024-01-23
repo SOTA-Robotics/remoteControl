@@ -1,6 +1,6 @@
 import yaml
 import json
-
+from pymodbus.client import ModbusSerialClient
 # Step 1: Define the Device Classes
 class Smartphone:
     def __init__(self, brand, model):
@@ -35,23 +35,26 @@ def print_device_config(name,unit):
 
 # Example Usage
 if __name__ == '__main__':
-    config_path = '../../config/devices.yaml'  # or .json
+    config_path = '../../config/RS485_config.yaml'  # or .json
     device_specs = read_device_config(config_path)
     device = device_specs["port"]
+    print(device)
     device = device[0]
+    print(device)
+    ModbusSerialClient(**device)
     for spec in device:
         #device_type = spec.pop('type')
         #print_device_config(**spec)
         print(spec)
 
-
-    device_read = device_specs["devices_read"]
-    print(device_read)
-    for device in device_read:
-        print(device)
-
-    config_path = '../../config/package.yaml'  # or .json
-    device_specs = read_device_config(config_path)
-    print(device_specs)
+    #
+    # device_read = device_specs["devices_read"]
+    # print(device_read)
+    # for device in device_read:
+    #     print(device)
+    #
+    # config_path = '../../config/package.yaml'  # or .json
+    # device_specs = read_device_config(config_path)
+    # print(device_specs)
 
 

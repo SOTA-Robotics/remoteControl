@@ -14,4 +14,5 @@
 {"date": "2023:12:27", "time": "17:42:58", "error_code": [1, 2, 5], "debug_condition": true, "mark_condition": false}
 {"date": "2023:12:27", "time": "18:24:01", "error_code": [5], "debug_condition": true, "mark_condition": false}
 {"date": "2023:12:27", "time": "18:35:09", "error_code": [5], "debug_condition": true, "mark_condition": false}
-{"date": "2023:12:27", "time": "18:35:26", "error_code": [5], "debug_condition": false, "mark_condition": false}
+{"date": "2023:12:27", "time": "18:35:26", "error_code": [5], "debug_condition": true, "mark_condition": false}
+{"date": "2024:01:23", "time": "09:38:23", "error_code": [1281, 1282], "debug_condition": true, "mark_condition": false}

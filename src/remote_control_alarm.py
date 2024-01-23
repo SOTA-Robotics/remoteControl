@@ -7,8 +7,6 @@ from pymodbus.client import ModbusSerialClient
 from RS485 import *
 
 
-
-
 class ModbusAlarm(RS485):
     def __init__(self, serial_client: ModbusSerialClient,name, unit=0x01):
         """
@@ -60,8 +58,8 @@ class ModbusAlarm(RS485):
             return result.registers
 
     def check(self):
-        '''
+        """
         check if device is connected
         :return: True for connected, False for disconnected
-        '''
+        """
         return super().check_connection(addr=0x01)

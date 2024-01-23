@@ -52,18 +52,20 @@ class current_detector(RS485):
         return True
 
     def read_current(self):
-        '''
+        """
         Reads the current in ampere
         :return:
-        '''
+        """
         result = self.client.read_holding_registers(address=0x0056, count=1, slave=self.unit)
         if isinstance(result, ModbusException):
             print("Fail to read current")
             return None
         else:
             return result.registers[0]*(20-0)/10000-0
+
     def read(self):
         return self.read_current()
+
     def close(self):
         self.client.close()
 

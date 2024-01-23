@@ -8,4 +8,4 @@ port:
     stopbits: 1
     timeout: 0.1
     errorcheck: "crc"
-    connection: true
+    connection: false

@@ -12,7 +12,6 @@ class RS485(object):
         :param addr:  holding_register address
         :return:
         """
-
         result = self.client.read_holding_registers(address=addr, count=1, slave=self.unit)
         if isinstance(result, ModbusException):
             print(f"Failure to connect  {self.__class__.__name__}")

@@ -86,14 +86,14 @@ class tcp_client:
         self.client_socket.connect(self.server_address)
         print("Connect to server address " + str(self.server_address))
 
-    def connect_client(self, waiting_time_out=0.1):
+    def connect_server(self, waiting_time_out=0.1):
         try:
             self.client_socket.connect(self.server_address)
             self.client_socket.settimeout(waiting_time_out)
             print("Connected to client address ")
             return True
         except Exception as e:
-            print("Failure to accept client's connection", e)
+            print("Failure to accept server's connection", e)
             return False
 
     def read_from_server(self):
