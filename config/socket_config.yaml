@@ -1,7 +1,7 @@
 #tcp configuration
 tcp:
-  - host: "192.168.10.57"
+  - host: "localhost"
     port: 6666
     connection_time_out: 60
-    waiting_time_out: 5
-    connection: true
+    waiting_time_out: 0.1
+    connection: false

@@ -1,4 +1,4 @@
-from share_variables import *
+import share_variables as sv
 from datetime import datetime
 import time
 import os
@@ -36,46 +36,75 @@ class StateMachine:
             time.sleep(self.sleep_time)
 
 
+def handle_exception(error_list: list, devices: dict):
+    cur = datetime.now()
+    date = cur.strftime('%Y:%m:%d')
+    tme = cur.strftime('%H:%M:%S')
+    if error_list:
+        sv.my_logger.log_json_information(date, tme, error_code=error_list, debug_condition=True)
+        if "io_relays1" in devices:
+            if "alarm1" in devices:
+                print("here")
+                devices["alarm1"].play_alarm()
+            # for error in error_list:
+            #     if error == 0x501:
+            #         if sv.state_variable["socket_connection_flag"]:
+            #             devices["io_relays1"].set_all_switches(sv.STOP_BIT)
+            #         return system_waiting_state()
+            #     elif error == 0x402:
+            #         devices["io_relays1"].set_all_switches(sv.STOP_BIT)
+            #         return system_waiting_state()
+            #     elif error == 0x403:
+            #         devices["io_relays1"].set_all_switches(sv.STOP_BIT)
+            #         return system_waiting_state()
+            if any(item in sv.error_stop_list for item in error_list):
+                devices["io_relays1"].set_all_switches(sv.STOP_BIT)
+                return system_waiting_state()
+        return None
+
+
 def check_exception():
-    '''
+    """
     check if there are any considered exception problems in the system,
     including connection problem, and all subsystems running conditional problems
     and log the failure exception msg to the file defined in package.json
     :return: False for occurrence of problems; True for no problems
-    '''
-    global RS485_devices_reading
-    global my_logger
-    global configurations
-    global state_variable
+    """
     cur = datetime.now()
     date = cur.strftime('%Y:%m:%d')
     tme = cur.strftime('%H:%M:%S')
-    error_code_list = []
-    latest_logging = my_logger.read_json_information()
+    # latest_logging = sv.my_logger.read_json_information()
     # if latest_logging and not latest_logging["debug_condition"]:
     #     return False
-    if not check_connection():
-        print("Connections' problem")
-        return False
-    if tcp_read_json_information:
-        if (tcp_read_json_information["temperature_sensors"] and
-                max(tcp_read_json_information["temperature_sensors"]) > configurations["temperature_threshold"]):
+    error_code_list = check_connection()
+    if sv.tcp_read_json_information:
+        if (sv.tcp_read_json_information["temperature_sensors"] and
+                max(sv.tcp_read_json_information["temperature_sensors"]) > sv.configurations["temperature_threshold"]):
             error_code_list.append(0x401)
-        if not tcp_read_json_information["robot_state"]:
+        if not sv.tcp_read_json_information["robot_state"]:
             error_code_list.append(0x402)
-        if not tcp_read_json_information["conveyor_state"]:
+        if not sv.tcp_read_json_information["conveyor_state"]:
             error_code_list.append(0x403)
 
-    if "current_sensor1" in RS485_devices_reading and (RS485_devices_reading["current_sensor1"] is not None
-                                                       and RS485_devices_reading["current"] < configurations[
-                                                           "current_threshold"]):
+    if "current_sensor1" in sv.RS485_devices_reading and (sv.RS485_devices_reading["current_sensor1"] is not None
+                                                          and sv.RS485_devices_reading["current"] < sv.configurations[
+                                                              "current_threshold"]):
         error_code_list.append(0x404)
     if error_code_list:
-        my_logger.log_json_information(date, tme, error_code=error_code_list, debug_condition=False)
-        print("other exceptions' problem")
-        return False
-    return True
+        hex_strings = [hex(num) for num in error_code_list]
+        print(hex_strings)
+        # sv.my_logger.log_json_information(date, tme, error_code=error_code_list, debug_condition=True)
+        print("Exceptions' problem")
+    return error_code_list
 
+
+def exception_type(error_code_list):
+    if error_code_list:
+        if all(item in sv.error_stop_list for item in error_code_list):
+            return "error"
+        if all(item in sv.error_warning_list for item in error_code_list):
+            return "warning"
+    return "normal"
 
 def check_connection():
     """
@@ -84,34 +113,35 @@ def check_connection():
     :return: False for occurrence of connection problems; True for no connection
     problems
     """
-    global state_variable
-    global my_logger
-    global configurations
     cur = datetime.now()
     date = cur.strftime('%Y:%m:%d')
     tme = cur.strftime('%H:%M:%S')
     error_code_list = []
-    soft_connection_error = [0x501,0x502]
-    if not state_variable["socket_connection_flag"]:
+    soft_connection_error = [0x501, 0x502]
+    if not sv.state_variable["socket_connection_flag"]:
         error_code_list.append(0x501)
-    if not state_variable["port_connection_flag"]:
+    if not sv.state_variable["port_connection_flag"]:
         error_code_list.append(0x502)
-    if devices_connection_flag:
+    if sv.state_variable["socket_connection_flag"] and sv.tcp_update_period > 30:
+        print(sv.tcp_update_period)
+        error_code_list.append(0x503)
+    if sv.devices_connection_flag:
         idx = 0
-        for val in devices_connection_flag.values():
+        for key, val in sv.devices_connection_flag.items():
+            print(f"{key}:{val}")
             idx += 1
             if val is False:
                 error_code_list.append(0x502 + idx)
     if error_code_list:
+        print(error_code_list)
         if all(element in error_code_list for element in soft_connection_error):
             for element in soft_connection_error:
                 if element in error_code_list:
                     print(f"soft connection problem: {element}")
-    else:
-        my_logger.log_json_information(date, tme, error_code=error_code_list,
-                                       debug_condition=False)
-        return False
-    return True
+        # else:
+        #     my_logger.log_json_information(date, tme, error_code=error_code_list,
+        #                                debug_condition=False)
+    return error_code_list
 
 
 class system_waiting_state(State):
@@ -127,33 +157,32 @@ class system_waiting_state(State):
         self.state = state
 
     def on_event(self, devices):
-        global ui_commands
-        global RS485_devices_reading
-        global configurations
-        check_exception()
+        print(sv.RS485_devices_reading["io_relays1"][0][sv.configurations["io_emergency_stop_port_num"]-1])
+        print(sv.RS485_devices_reading)
         if "io_relays1" in devices:
-            # devices["io_relays1"].set_all_switches(STOP_BIT)
-            print("stop devices")
-            result = devices["io_relays1"].read_outputs(address=0, count=8)
-        if ui_commands["shutdown_signal"]:
-            ui_commands["shutdown_signal"] = False
+            devices["io_relays1"].set_all_switches(sv.STOP_BIT)
+        result = check_exception()
+        if sv.ui_commands["shutdown_signal"]:
+            sv.ui_commands["shutdown_signal"] = False
             return system_shutdown_state()
-        elif ui_commands["start_signal"]:
-            ui_commands["start_signal"] = False
-            my_logger.debug_finished()
-            return system_start_state()
-        if ("current_sensor1" in RS485_devices_reading and
-                RS485_devices_reading["current_sensor1"] < configurations["current_threshold"]):
-            return system_shutdown_state()
-        elif ("io_relays1" in RS485_devices_reading and
-              (RS485_devices_reading["io_relays1"] and
-               RS485_devices_reading["io_relays1"][0][configurations["io_emergency_stop_port_num"]] == STOP_BIT)):
-            return system_waiting_state()
-        elif ("io_relays1" in RS485_devices_reading and
-              RS485_devices_reading["io_relays"] and
-              RS485_devices_reading["io_relays"][0][configurations["io_emergency_stop_port_num"]] == START_BIT):
-            return system_start_state()
+        if exception_type(result) != "error":
+            if sv.ui_commands["start_signal"]:
+                sv.ui_commands["start_signal"] = False
+                # sv.my_logger.debug_finished()
+                return system_start_state()
+            elif ("io_relays1" in sv.RS485_devices_reading and
+                  (sv.RS485_devices_reading["io_relays1"] and
+                   sv.RS485_devices_reading["io_relays1"][0][
+                       sv.configurations["io_emergency_stop_port_num"]-1] == sv.STOP_BIT)):
+                return system_waiting_state()
+            elif ("io_relays1" in sv.RS485_devices_reading and
+                  sv.RS485_devices_reading["io_relays1"] and
+                  sv.RS485_devices_reading["io_relays1"][0][
+                      sv.configurations["io_emergency_stop_port_num"]-1] == sv.START_BIT):
+                print("waiting return start state")
+                return system_start_state()
         else:
+            print("waiting_state:error still persist")
             return system_waiting_state()
 
 
@@ -168,18 +197,27 @@ class system_start_state(State):
         self.state = state
 
     def on_event(self, devices):
-        global RS485_devices_reading
-        global ui_commands
-        check_exception()
-        if ui_commands["shutdown_signal"]:
-            ui_commands["shutdown_signal"] = False
+        state = handle_exception(check_exception(), devices)
+        if "io_relays1" in devices:
+            print(sv.RS485_devices_reading["io_relays1"])
+            print(sv.RS485_devices_reading["io_relays1"][0][sv.configurations["io_emergency_stop_port_num"]-1])
+        if "alarm1" in devices.keys():
+            devices["alarm1"].stop_alarm()
+        if state is not None:
+            return state
+        if sv.ui_commands["shutdown_signal"]:
+            sv.ui_commands["shutdown_signal"] = False
             return system_shutdown_state()
-        elif ("io_relays" in RS485_devices_reading and
-              (RS485_devices_reading["io_relays"] and
-               RS485_devices_reading["io_relays"][0][configurations["io_emergency_stop_port_num"]] == STOP_BIT)):
+        elif ("io_relays1" in sv.RS485_devices_reading and
+              (sv.RS485_devices_reading["io_relays1"] and
+               sv.RS485_devices_reading["io_relays1"][0][
+                   sv.configurations["io_emergency_stop_port_num"]-1] == sv.STOP_BIT)):
+            print("emergency stop")
             return system_waiting_state()
         else:
-            self.start_in_sequence(devices)
+            result = self.start_in_sequence(devices)
+            if result is not None:
+                return result
             return system_start_state(self.state)
 
     def start_in_sequence(self, devices):
@@ -196,36 +234,33 @@ class system_start_state(State):
         :param devices: devices list
         :return:
         """
-        global RS485_devices_reading
-        global start_state
-        global configurations
         if self.state == "start_stage_0":
-            if "io_relays1" in RS485_devices_reading:
-                if (RS485_devices_reading["io_relays1"] and len(RS485_devices_reading["io_relays1"][0]) == 8 and
-                        configurations["start_list"] == RS485_devices_reading["io_relays1"][0]):
-                    self.state = start_state[self.state]
+            if "io_relays1" in sv.RS485_devices_reading:
+                if (sv.RS485_devices_reading["io_relays1"] and len(sv.RS485_devices_reading["io_relays1"][0]) == 8 and
+                        sv.configurations["start_list"] == sv.RS485_devices_reading["io_relays1"][0]):
+                    self.state = sv.start_state[self.state]
                 else:
                     self.state = self.state
             else:
-                print(start_state)
-                self.state = start_state[self.state]
+                self.state = sv.start_state[self.state]
         elif self.state == "start_stage_1":
-            if "io_relays1" in RS485_devices_reading:
+            if "io_relays1" in sv.RS485_devices_reading:
                 print("stop devices")
-                # devices["io_relays1"].set_all_switches(START_BIT)
+                devices["io_relays1"].set_all_switches(sv.START_BIT)
                 result = devices["io_relays1"].read_outputs(address=0, count=8)
             else:
-                result = configurations["start_list"]
+                result = sv.configurations["start_list"]
             if result and len(result) == 8:
-                if result == configurations["start_list"]:
-                    self.state = start_state[self.state]
+                if result == sv.configurations["start_list"]:
+                    self.state = sv.start_state[self.state]
         elif self.state == "start_stage_2":
             if "io_relays1" in devices:
-                io_input = RS485_devices_reading["io_relays1"]
+                io_input = sv.RS485_devices_reading["io_relays1"][0]
                 if io_input:
                     for val in io_input:
-                        if val == STOP_BIT:
+                        if val == sv.STOP_BIT:
                             return system_waiting_state()
+        return None
 
 
 class system_shutdown_state(State):
@@ -237,16 +272,17 @@ class system_shutdown_state(State):
 
     :param State: None, the state machine determine which state will be passed to
     """
-
     def __init__(self, state="shutdown_stage_0"):
         self.state = state
 
     def on_event(self, devices):
-        if ui_commands["start_signal"]:
-            ui_commands["start_signal"] = False
+        if sv.ui_commands["start_signal"]:
+            sv.ui_commands["start_signal"] = False
             return system_start_state()
 
         self.shutdown_in_sequence(devices)
+        if self.state == "shutdown_stage_2":
+            return system_start_state()
         return system_shutdown_state(self.state)
 
     def shutdown_in_sequence(self, devices):
@@ -259,36 +295,33 @@ class system_shutdown_state(State):
         :param devices: io_controller object
         :return:
         """
-        global RS485_devices_reading
-        global shut_down_state
-        global configurations
         if self.state == "shutdown_stage_0":
-            if "io_relays" in devices:
-                # result = devices["io_relays"].set_all_switches(STOP_BIT)
+            if "io_relays1" in devices:
+                result = devices["io_relays"].set_all_switches(sv.STOP_BIT)
                 # result = io_controller.read_outputs(address=0,count=8);
                 print("stop devices")
-                physical_relays = RS485_devices_reading["io_output"]
+                physical_relays = sv.RS485_devices_reading["io_output"]
                 if physical_relays and len(physical_relays) != 8:
                     self.state = "shutdown_stage_0"
                 else:
-                    if physical_relays == configurations["stop_list"]:
-                        self.state = shut_down_state[self.state]
+                    if physical_relays == sv.configurations["stop_list"]:
+                        self.state = sv.shut_down_state[self.state]
                     else:
                         self.state = "shutdown_stage_0"
             else:
-                self.state = shut_down_state[self.state]
+                self.state = sv.shut_down_state[self.state]
         elif self.state == "shutdown_stage_1":
             '''
             wait user to shutdown all physical relays
             '''
-            if "io_relays" in devices:
-                if (RS485_devices_reading["io_relays"] and
-                        RS485_devices_reading["io_relays"][0] == configurations["stop_list"]):
-                    self.state = shut_down_state[self.state]
+            if "io_relays1" in devices:
+                if (sv.RS485_devices_reading["io_relays1"] and
+                        sv.RS485_devices_reading["io_relays1"][0] == sv.configurations["stop_list"]):
+                    self.state = sv.shut_down_state[self.state]
                     print("System can be shutdown here")
             else:
                 print("System can be shutdown here")
-                self.state = shut_down_state[self.state]
+                self.state = sv.shut_down_state[self.state]
         elif self.state == "shutdown_stage_2":
             '''
             shut down the system

@@ -66,7 +66,7 @@ shutdown mini states:
 '''
 shut_down_state = {
 
-    "shutdown_stage_0":"shutdown_stage_1",
+    "shutdown_stage_0": "shutdown_stage_1",
     "shutdown_stage_1": "shutdown_stage_2",
 }
 
@@ -92,3 +92,12 @@ dict to store different devices
 '''
 device_managers = {}
 
+error_stop_list = [0x503, 0x402, 0x403]
+error_warning_list = [0x501,0x502, 0x401, 0x404]
+error_warning_list.extend([0x5A0+i for i in range(100)])
+
+'''
+time_period to record how long the tcp data or rs485 devices reading data doesnt update
+'''
+tcp_update_period = 0
+rs485_update_period = {}

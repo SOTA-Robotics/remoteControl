@@ -5,15 +5,15 @@
 
 import threading
 from new_state_machine import *
-from pymodbus import Framer
 from pymodbus.client import ModbusSerialClient
 from socket_tcp import *
 from src.commands_parse import execute_command
-from share_variables import *
+import share_variables as sv
 from remote_control_IO import io_relay_controller
 from remote_control_alarm import ModbusAlarm
 from remote_detect_current import current_detector
-import yaml
+from exception_logger import *
+from datetime import datetime
 
 
 def io_controller_handler(devices, timeout, lock):
@@ -27,15 +27,11 @@ def io_controller_handler(devices, timeout, lock):
     """
 
     print("io_controller_handler start")
-    global RS485_devices_reading
 
     while True:
         with (lock):
             result = execute_command("read", devices)
-            RS485_devices_reading["current"] = result[0]
-            RS485_devices_reading["io_input"] = result[1]
-            RS485_devices_reading["io_output"] = result[2]
-
+            #print(sv.RS485_devices_reading)
         time.sleep(timeout)
 
 
@@ -58,20 +54,21 @@ def tcp_handler(server: tcp_server, timeout, lock):
     :param lock: lock for shared data structure between socket and threading
     :return:
     """
-    global tcp_data
-    global RS485_devices_reading
-    global ui_commands
-    global tcp_read_json_information
+    none_reading_timeslot = datetime.now()
     while True:
         with lock:
             tcp_data = server.read_from_client()
+            cur = datetime.now()
             if tcp_data is not None:
-                tcp_read_json_information["conveyor_state"] = tcp_data["conveyor"]
-                tcp_read_json_information["robot"] = tcp_data["robot"]
-                tcp_read_json_information["temperature_sensors"] = tcp_data["temperature"]
-                ui_commands["start_signal"] = tcp_data["start"]
-                ui_commands["pause_signal"] = tcp_data["pause"]
-                ui_commands["shutdown_signal"] = tcp_data["stop"]
+                sv.tcp_read_json_information["conveyor_state"] = tcp_data["conveyor"]
+                sv.tcp_read_json_information["robot"] = tcp_data["robot"]
+                sv.tcp_read_json_information["temperature_sensors"] = tcp_data["temperature"]
+                sv.ui_commands["start_signal"] = tcp_data["start"]
+                sv.ui_commands["pause_signal"] = tcp_data["pause"]
+                sv.ui_commands["shutdown_signal"] = tcp_data["stop"]
+                none_reading_timeslot = cur
+            sv.tcp_update_period = (cur - none_reading_timeslot).total_seconds()
+
         time.sleep(timeout)
 
 
@@ -96,10 +93,6 @@ def device_init():
     Nevertheless, the devices' connections are checked based on if reading holding registers are successful or not
     :return: a list of devices if port and devices' instances can be created. Otherwise, None is returned
     """
-    global state_variable
-    global RS485_devices_reading
-    global read_failure_times
-    global devices_connection_flag
     devices = {}
     configs = None
     config_path = '../config/RS485_config.yaml'
@@ -119,7 +112,7 @@ def device_init():
             except Exception as e:
                 print(e)
                 return devices
-            state_variable["port_connection_flag"] = True
+            sv.state_variable["port_connection_flag"] = True
             devices_config = configs["devices"]
             for spec in devices_config:
                 device_type = spec.pop('type')
@@ -133,20 +126,20 @@ def device_init():
                 elif device_type == 'current_sensor' and spec["connection"]:
                     devices[spec["name"]] = (current_detector(serial_client=serial_client,
                                                               name=spec["name"], unit=spec["unit"]))
-                '''
-                init a dict to maintain device read data, continuously failure read times and connection flag
-                check device connection, check 10 times to do connection with all devices
-                '''
-                devices_read = configs["devices_read"]
-                for device in devices_read:
-                    if device in devices.keys():
-                        RS485_devices_reading[device] = None
-                        read_failure_times[device] = 0
-                for device in devices:
-                    devices_connection_flag[device] = False
-                execute_command("check", devices)
+            '''
+            init a dict to maintain device read data, continuously failure read times and connection flag
+            check device connection, check 10 times to do connection with all devices
+            '''
+            devices_read = configs["devices_read"]
+            for device in devices_read:
+                if device in devices.keys():
+                    sv.RS485_devices_reading[device] = None
+                    sv.read_failure_times[device] = 0
+            for device in devices:
+                sv.devices_connection_flag[device] = False
+            execute_command("check", devices)
         else:
-            state_variable["port_connection_flag"] = False
+            sv.state_variable["port_connection_flag"] = False
             print("port_connection problem")
     return devices
 
@@ -156,7 +149,6 @@ def socket_tcp_init():
     Based on the socket_config.yaml to create a tcp connection
     :return: successful connection return socket instance, otherwise None
     """
-    global state_variable
     socket_server = None
     config_path = '../config/socket_config.yaml'
     configs = None
@@ -164,20 +156,20 @@ def socket_tcp_init():
         configs = load_configuration(config_path)
         configs = configs["tcp"][0]
     except Exception as e:
-        state_variable["socket_connection_flag"] = False
+        sv.state_variable["socket_connection_flag"] = False
         print(e)
         return None
     try:
         if configs["connection"]:
             socket_server = tcp_server(host=configs["host"], port=configs["port"],
                                        time_out=configs["connection_time_out"])
-            state_variable["socket_connection_flag"] = socket_server.connect_client(
+            sv.state_variable["socket_connection_flag"] = socket_server.connect_client(
                 waiting_time_out=configs["waiting_time_out"])
         else:
-            state_variable["socket_connection_flag"] = True
+            sv.state_variable["socket_connection_flag"] = True
     except Exception as e:
         print(e)
-        state_variable["socket_connection_flag"] = False
+        sv.state_variable["socket_connection_flag"] = False
     return socket_server
 
 
@@ -188,7 +180,6 @@ def control_system_run():
     and tcp information to execute with a set of rules
     :return:
     """
-    global state_variable
     threads = []
     lock = threading.Lock()  # lock for shared data structure between socket and threading
 
@@ -207,14 +198,14 @@ def control_system_run():
     '''
     Ready to run exception monitor system and read io and tcp devices 
     '''
-    print(f"RS485_devices_reading{RS485_devices_reading}")
-    print(f"devices_connection_flag{devices_connection_flag}")
-    print(f"read_failure_times{read_failure_times}")
-    print(f"tcp_information{tcp_read_json_information}")
-    print(f"ui_commands{ui_commands}")
-    for key,val in state_variable.items():
+    print(f"RS485_devices_reading{sv.RS485_devices_reading}")
+    print(f"devices_connection_flag{sv.devices_connection_flag}")
+    print(f"read_failure_times{sv.read_failure_times}")
+    print(f"tcp_information{sv.tcp_read_json_information}")
+    print(f"ui_commands{sv.ui_commands}")
+    for key,val in sv.state_variable.items():
         print(f"{key}:{val}")
-    exception_handler_system = StateMachine(system_start_state(), lock, devices, sleep_time=1)
+    exception_handler_system = StateMachine(system_start_state(), lock, devices, sleep_time=0.1)
     exception_handler_system.run()
     # for thread in threads:
     #     thread.join()

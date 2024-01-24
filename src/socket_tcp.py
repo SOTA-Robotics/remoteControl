@@ -83,8 +83,6 @@ class tcp_client:
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_address = (host, port)
         self.client_socket.settimeout(time_out)
-        self.client_socket.connect(self.server_address)
-        print("Connect to server address " + str(self.server_address))
 
     def connect_server(self, waiting_time_out=0.1):
         try:

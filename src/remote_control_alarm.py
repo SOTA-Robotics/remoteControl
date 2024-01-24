@@ -18,16 +18,17 @@ class ModbusAlarm(RS485):
         self.unit = unit
         self.client = serial_client
         self.name = name
+        self.set_alarm_volume(volume=0)
         print("Connected to Modbus RTU device alarm_controller")
 
     def play_alarm(self):
-        '''
+        """
         This alarm starts to play
         :return: None for failure to send commands; Values for success to send commands
-        '''
+        """
         result = self.client.write_register(address=0x01, value=0, slave=self.unit)
         if isinstance(result, ModbusException):
-            print("Failure to write register", result)
+            print(f"{self.name} play_alarm:Failure to write register", result)
             return None
         else:
             return result.registers
@@ -37,9 +38,9 @@ class ModbusAlarm(RS485):
         This alarm stop playing
         :return: None for failure to send commands; Values for success to send commands
         """
-        result = self.client.write_register(address=0x02, value=0, slave=self.unit)
+        result = self.client.write_register(address=0x03, value=0, slave=self.unit)
         if isinstance(result, ModbusException):
-            print("Failure to write register", result)
+            print(f"{self.name} stop_alarm:Failure to write register", result)
             return None
         else:
             return result.registers
@@ -52,7 +53,7 @@ class ModbusAlarm(RS485):
         """
         result = self.client.write_register(address=0x06, value=volume, slave=self.unit)
         if isinstance(result, ModbusException):
-            print("Failure to write register", result)
+            print(f"{self.name} set_alarm_volume:Failure to write register", result)
             return None
         else:
             return result.registers

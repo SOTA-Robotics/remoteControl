@@ -66,7 +66,6 @@ class io_relay_controller(RS485):
         else:
             return result.bits[0]
 
-
     def read_outputs(self, address=0, count=1):
         """
         read the output relay coils
@@ -77,7 +76,7 @@ class io_relay_controller(RS485):
         """
         result = self.client.read_coils(address=address, count=count, slave=self.unit)
         if isinstance(result, ModbusException):
-            print("Failure to read IO outputs ", result)
+            print(f"{self.name}:Failure to read IO outputs ", result)
             return None
         else:
             return result.bits
