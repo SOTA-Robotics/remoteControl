@@ -1,11 +1,11 @@
 #port configuration
 port:
-  - baudrate: 38400
+  - baudrate: 19200
     method: 'rtu'
-    port: "COM5"
+    port: "/dev/ttyUSB0"
     parity: 'N'
     bytesize: 8
     stopbits: 1
     timeout: 0.1
     errorcheck: "crc"
-    connection: false
+    connection: true

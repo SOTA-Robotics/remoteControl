@@ -9,10 +9,16 @@ connection_time_out: 60
 waiting_time_out: 0.1
 
 #the io port number on relays correspond the controlled machine
-io_conveyor_port_num: 3
-io_robot_port_num: 2
-io_waste_feed_port_num: 1
-io_emergency_stop_port_num: 1
+io_input_cvy_num: 4
+io_input_rbt_port_num: 3
+io_input_wf_port_num: 2
+io_input_es_port_num: 1
+
+#the io output relays' port numbers corresponds which devices
+io_output_cvy_num: 3
+io_output_rbt_port_num: 2
+io_output_wf_port_num: 1
+
 
 #threshold for error conditions
 temperature_threshold: 60

@@ -27,11 +27,14 @@ def io_controller_handler(devices, timeout, lock):
     """
 
     print("io_controller_handler start")
-
+    times = 0
     while True:
         with (lock):
             result = execute_command("read", devices)
-            #print(sv.RS485_devices_reading)
+            times += 1
+            if times == 50:
+                times = 0
+                print(sv.RS485_devices_reading)
         time.sleep(timeout)
 
 
@@ -166,7 +169,7 @@ def socket_tcp_init():
             sv.state_variable["socket_connection_flag"] = socket_server.connect_client(
                 waiting_time_out=configs["waiting_time_out"])
         else:
-            sv.state_variable["socket_connection_flag"] = True
+            sv.state_variable["socket_connection_flag"] = False
     except Exception as e:
         print(e)
         sv.state_variable["socket_connection_flag"] = False

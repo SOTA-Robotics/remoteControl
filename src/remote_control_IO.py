@@ -81,7 +81,7 @@ class io_relay_controller(RS485):
         else:
             return result.bits
 
-    def control_switches(self, open_switch_list, close_switch_list):
+    def control_switches(self, open_switch_list=[], close_switch_list=[]):
         """
         control all switch at the same time based on open_witch_list and close_switch_list
         openlist represents True to switches and closelist represents False to switches.

@@ -1,7 +1,7 @@
 #tcp configuration
 tcp:
   - host: "localhost"
-    port: 6666
+    port: 8888
     connection_time_out: 60
     waiting_time_out: 0.1
     connection: false

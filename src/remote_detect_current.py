@@ -23,10 +23,10 @@ class current_detector(RS485):
         :param seria_client:pymdobus serial client object
         :param unit: uint16,the slave id for the device, the default value is 1
         '''
-        super().__init__(seria_client,unit)
+        super().__init__(serial_client,unit)
         self.baud_rate_dict = {3: 1200, 4: 2400, 5: 4800, 6: 9600, 7: 19200}
         self.unit = unit
-        self.client = seria_client
+        self.client = serial_client
         self.name = name
         print("Connected to Modbus RTU device " + "fengkong_current_detector")
 

@@ -36,6 +36,18 @@ class StateMachine:
             time.sleep(self.sleep_time)
 
 
+def pause_system(devices):
+    """
+    stop devices except robot
+    :param devices:
+    :return:
+    """
+    if "io_relays1" in devices.keys():
+        stop_list = []
+        stop_list.append(sv.configurations["io_output_wf_port_num"])
+        stop_list.append(sv.configurations["io_output_cvy_num"])
+        devices["io_relays"].control_switches(stop_list,[])
+
 def handle_exception(error_list: list, devices: dict):
     cur = datetime.now()
     date = cur.strftime('%Y:%m:%d')
@@ -173,12 +185,12 @@ class system_waiting_state(State):
             elif ("io_relays1" in sv.RS485_devices_reading and
                   (sv.RS485_devices_reading["io_relays1"] and
                    sv.RS485_devices_reading["io_relays1"][0][
-                       sv.configurations["io_emergency_stop_port_num"]-1] == sv.STOP_BIT)):
+                       sv.configurations["io_input_es_port_num"]-1] == sv.STOP_BIT)):
                 return system_waiting_state()
             elif ("io_relays1" in sv.RS485_devices_reading and
                   sv.RS485_devices_reading["io_relays1"] and
                   sv.RS485_devices_reading["io_relays1"][0][
-                      sv.configurations["io_emergency_stop_port_num"]-1] == sv.START_BIT):
+                      sv.configurations["io_input_es_port_num"]-1] == sv.START_BIT):
                 print("waiting return start state")
                 return system_start_state()
         else:
@@ -198,9 +210,9 @@ class system_start_state(State):
 
     def on_event(self, devices):
         state = handle_exception(check_exception(), devices)
-        if "io_relays1" in devices:
+        if "io_relays1" in devices and sv.RS485_devices_reading["io_relays1"][0]:
             print(sv.RS485_devices_reading["io_relays1"])
-            print(sv.RS485_devices_reading["io_relays1"][0][sv.configurations["io_emergency_stop_port_num"]-1])
+            print(sv.RS485_devices_reading["io_relays1"][0][sv.configurations["io_input_es_port_num"]-1])
         if "alarm1" in devices.keys():
             devices["alarm1"].stop_alarm()
         if state is not None:
@@ -211,7 +223,7 @@ class system_start_state(State):
         elif ("io_relays1" in sv.RS485_devices_reading and
               (sv.RS485_devices_reading["io_relays1"] and
                sv.RS485_devices_reading["io_relays1"][0][
-                   sv.configurations["io_emergency_stop_port_num"]-1] == sv.STOP_BIT)):
+                   sv.configurations["io_input_es_port_num"]-1] == sv.STOP_BIT)):
             print("emergency stop")
             return system_waiting_state()
         else:

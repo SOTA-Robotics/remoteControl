@@ -5,12 +5,12 @@
 devices:
   - type: alarm
     name: "alarm1"
-    unit: 2
+    unit: 1
     connection: false
 
   - type: relays
     name: "io_relays1"
-    unit: 1
+    unit: 2
     small_port: false
     connection: true
 

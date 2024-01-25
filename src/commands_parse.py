@@ -8,7 +8,7 @@ def command_shutdown(devices):
     :return: list of the output relays' conditions
     """
     if "io_relays1" in devices.keys():
-        devices["io_relays1"].set_all_switches(0)
+        devices["io_relays1"].set_all_switches(sv.START_BIT)
         result = devices["io_relays1"].read_outputs(address=0, count=8)
         if "alarm1" in devices:
             devices["alarm1"].stop_alarm()
