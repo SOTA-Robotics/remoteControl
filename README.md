@@ -1,4 +1,4 @@
-# remoteControl
+# RemoteControl
 
 This remote control system is designed for handling any emergencies including power-off, and exceptions such as 
 robot conveyors conducting wrong operations, which will potentially damage the system itself or the people's 
@@ -6,7 +6,7 @@ safety. Hence a remote control system is proposed to prevent this happening and 
 properly. If any exceptions occur, the system will be aborted and record any wrong message in the "logging.log" file.
 
 # Here are descriptions for the remote control system
-## communication
+## Communication
 1. Main system(Computer vision system): This system is required to communicate with the main system which is in charge of detecting and commanding a delta robot to sort 
                                         materials.  The communication is via socket and it requires rj45 as well as routing connection. The message's format is defined as
                                         a dictionary of {"temp_dict": temperature_dict, "count_dict": self.grasp_count_dict, "conveyor": True, "robot_error": self.robot_error,
