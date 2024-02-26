@@ -22,7 +22,7 @@ Exception Code | Explain | Hanle
 ------------ | ------------- | -------------
 0x501 | Failure connection between the control system and the main system | Warning
 0x502 | Failure to open RS485 port  | Warning
-0x503 | The control system has not received the main system message after a amount of time | Stop&Warning
+0x503 | The control system has not received the main system message after an amount of time | Stop&Warning
 0x5A0~ | devices' connections failure | Warning
 0x401 | Temperature exceed the threshold | Warning
 0x402 | Robot exception | Stop&Warning
@@ -31,6 +31,15 @@ Exception Code | Explain | Hanle
 
 
 ## Information Format
+Name | type | Example
+------------ | ------------- | -------------
+temp_dict | dict | [ "intake_1": tmp(float), "intake_2":tmp(float), "outlet_1":tep((float), "outlet_2":tmp(float)]
+count_dict | dict | ["class_type1": count_num1, "class_type1": count_num2]
+conveyor | boolean | True
+robot_error | int | 0
+start | boolean | False
+pause | boolean | False
+stop | boolean | False
 
 # Usage of the remote control system 
 The system is to monitor the state of the system and communication is crucial. To set up and let the system work. Serval configurations are important
