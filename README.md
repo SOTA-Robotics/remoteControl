@@ -3,12 +3,12 @@
 This remote control system is designed for handling any emergencies including power-off, and exceptions such as 
 robot conveyors conducting wrong operations, which will potentially damage the system itself or the people's 
 safety. Hence a remote control system is proposed to prevent this happening and monitor the whole system if works
-properly. If any exceptions occur, the system will be aborted and record any wrong message in the "logging.log" file.
+properly. If any exceptions occur, the system will be aborted and record exceptions msg in the "logging.log" file.
 
 # Here are descriptions for the remote control system
 ## Communication
 1. Main system(Computer vision system): This system is required to communicate with the main system which is in charge of detecting and commanding a delta robot to sort 
-                                        materials.  The communication is via socket and it requires rj45 as well as routing connection. The message's format is defined as
+                                        wastes.  The communication is via socket and it requires rj45 as well as routing connection. The message's format is defined as
                                         a dictionary of {"temp_dict": temperature_dict, "count_dict": self.grasp_count_dict, "conveyor": True, "robot_error": self.robot_error,
                                                             "start": False, "pause": False, "stop": False}
 2. RS485 for slave devices(current sensor, alarm and relays):  This communication is based on Modbus protocol and RS485 physical connection.
@@ -54,3 +54,6 @@ RS485_config.yaml: define the port configurations such as baudrate, port, and co
 socket_config.yaml: define socket configurations such as host, port, etc
 
 Ensure physical connections are intact before setting the connection as True in the configuration's file.
+
+#Validation Test
+
