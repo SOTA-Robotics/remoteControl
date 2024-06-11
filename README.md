@@ -46,8 +46,11 @@ The system is to monitor the state of the system and communication is crucial. T
 All configurations are amended in YAML file
 
 devices.yaml: devices that are accessed by RS485, devices' name, and their slave ID
+
 package.yaml: configurations include relays' number of each device, temperature threshold, etc
+
 RS485_config.yaml: define the port configurations such as baudrate, port, and connection, etc
+
 socket_config.yaml: define socket configurations such as host, port, etc
 
 Ensure physical connections are intact before setting the connection as True in the configuration's file.
