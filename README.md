@@ -55,5 +55,5 @@ socket_config.yaml: define socket configurations such as host, port, etc
 
 Ensure physical connections are intact before setting the connection as True in the configuration's file.
 
-#Validation Test
+# Validation Test
 
